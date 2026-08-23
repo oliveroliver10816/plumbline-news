@@ -2323,6 +2323,18 @@ final class Render
         return $s;
     }
 
+    /**
+     * Render a body as blocks.
+     *
+     * Writers type markdown into a plain textarea without being asked to — the
+     * first post written on this desk opened with `# Abrupt Weather Changes…`
+     * and the `#` printed on the page. So the small, predictable subset gets
+     * honoured: headings, bullet and numbered lists, blockquotes, rules, and
+     * the inline emphasis inline() already handles.
+     *
+     * Everything is escaped by inline() BEFORE any tag is introduced, so no
+     * markup in the source text can ever reach the page.
+     */
     public static function paragraphs(string $text): string
     {
         // Tolerate CRLF whatever produced it — a form post, a Windows paste, a
@@ -2338,18 +2350,78 @@ final class Render
             if ($chunk === '') {
                 continue;
             }
-            // A single newline inside a paragraph is a soft break in the
-            // original — a verse line, an address, a list item the publisher
-            // did not tag. Keep it visible rather than gluing the words
-            // together, which is what a plain implode would do.
-            $lines = array_filter(array_map('trim', preg_split('/\n/', $chunk) ?: []), static fn(string $l): bool => $l !== '');
-            // inline() escapes first, then re-introduces only **bold**, *italic*
-            // and [text](url) — so a writer's markdown works without any source
-            // markup ever reaching the page.
-            $out  .= '<p>' . implode('<br>', array_map([self::class, 'inline'], $lines)) . '</p>';
+            $lines = array_values(array_filter(
+                array_map('trim', preg_split('/\n/', $chunk) ?: []),
+                static fn(string $l): bool => $l !== ''
+            ));
+            if ($lines === []) {
+                continue;
+            }
+
+            // A horizontal rule.
+            if (count($lines) === 1 && preg_match('/^(?:-{3,}|\*{3,}|_{3,})$/', $lines[0]) === 1) {
+                $out .= '<hr class="story-rule">';
+                continue;
+            }
+
+            // A heading. The article headline is the page's h1, so the highest a
+            // body heading may be is h2 — two h1s is a real accessibility fault,
+            // not a style preference.
+            if (count($lines) === 1 && preg_match('/^(#{1,6})\s*(.+)$/u', $lines[0], $m) === 1) {
+                $level = min(4, max(2, strlen($m[1]) + 1));
+                $out  .= '<h' . $level . ' class="story-h">' . self::inline(trim($m[2])) . '</h' . $level . '>';
+                continue;
+            }
+
+            // A bullet list.
+            if (self::everyLineMatches($lines, '/^[-*+]\s+\S/')) {
+                $out .= '<ul class="story-list">';
+                foreach ($lines as $l) {
+                    $out .= '<li>' . self::inline(trim((string) preg_replace('/^[-*+]\s+/', '', $l))) . '</li>';
+                }
+                $out .= '</ul>';
+                continue;
+            }
+
+            // A numbered list.
+            if (self::everyLineMatches($lines, '/^\d+[.)]\s+\S/')) {
+                $out .= '<ol class="story-list">';
+                foreach ($lines as $l) {
+                    $out .= '<li>' . self::inline(trim((string) preg_replace('/^\d+[.)]\s+/', '', $l))) . '</li>';
+                }
+                $out .= '</ol>';
+                continue;
+            }
+
+            // A quotation.
+            if (self::everyLineMatches($lines, '/^>\s?/')) {
+                $inner = array_map(
+                    static fn(string $l): string => self::inline(trim((string) preg_replace('/^>\s?/', '', $l))),
+                    $lines
+                );
+                $out .= '<blockquote class="story-quote"><p>' . implode('<br>', $inner) . '</p></blockquote>';
+                continue;
+            }
+
+            // An ordinary paragraph. A single newline inside it is a soft break
+            // in the original — a verse line, an address, a list item the
+            // publisher never tagged — so it is kept rather than glued.
+            $out .= '<p>' . implode('<br>', array_map([self::class, 'inline'], $lines)) . '</p>';
         }
 
         return $out;
+    }
+
+    /** @param array<int,string> $lines */
+    private static function everyLineMatches(array $lines, string $pattern): bool
+    {
+        foreach ($lines as $l) {
+            if (preg_match($pattern, $l) !== 1) {
+                return false;
+            }
+        }
+
+        return $lines !== [];
     }
 
     /**

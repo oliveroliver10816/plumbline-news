@@ -547,9 +547,30 @@ ul,ol{list-style:none}
 .story-flag{display:inline-flex;align-items:center;height:20px;padding:0 8px;background:var(--ink);
   color:var(--paper);font:600 11px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase}
 
-.story-media{margin:var(--s5) 0 0}
-.story-media img{width:100%;aspect-ratio:3/2;object-fit:cover;background:var(--well)}
+/* The article photograph.
+   It used to be forced to 3/2 at the full column width, which on a 1440 screen
+   made a 1041x694 slab — wider than the 70ch text it belongs to, and it cropped
+   the top and bottom off any 16:9 picture the editor uploaded. It now matches
+   the reading measure, keeps the picture's own shape (the img carries real
+   width/height attributes, so height:auto uses the true ratio), and is capped
+   so a tall photograph cannot take the whole screen. */
+.story-media{margin:var(--s5) 0 0;max-width:70ch}
+.story-media img{display:block;width:100%;height:auto;max-height:min(62vh,560px);
+  object-fit:cover;object-position:center;background:var(--well)}
 .story-media--house img{aspect-ratio:1200/630;object-fit:cover}
+.story-figcaption{max-width:70ch}
+
+/* Body blocks the writer can produce with markdown. */
+.story-h{max-width:70ch;margin:var(--s5) 0 var(--s3);padding-left:clamp(16px,2vw,32px);
+  font:700 clamp(21px,1.5vw,26px)/1.25 var(--serif);color:var(--ink)}
+.article-body h2.story-h,.article-body h3.story-h,.article-body h4.story-h{padding-left:0;max-width:none}
+.article-body .story-list{margin:0 0 1.05em;padding-left:1.35em}
+.article-body .story-list li{margin:0 0 .45em}
+.article-body .story-quote{margin:var(--s4) 0;padding:0 0 0 1em;border-left:3px solid var(--accent);
+  font-style:italic;color:var(--ink-2)}
+.article-body .story-quote p{margin:0}
+.article-body .story-rule{margin:var(--s5) 0;border:0;border-top:1px solid var(--rule)}
+.article-body a{color:var(--accent);text-underline-offset:.15em}
 .story-figcaption{margin-top:var(--s2);padding-left:var(--colpad);border-left:1px solid var(--rule);
   font:400 var(--fs-meta)/1.5 var(--sans);color:var(--ink-2)}
 
