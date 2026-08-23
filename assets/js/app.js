@@ -143,20 +143,17 @@
     if (track && !reduced) { track.style.animationPlayState = paused ? 'paused' : ''; }
   }
 
-  /* rotation: poll /api/top.json on the interval config.php sets, cross-fade
-     the hero cards through a longer pool. Contract: app/Rotate.php. */
+  /* rotation: poll /api/top.json, cross-fade hero cards. See app/Rotate.php. */
   const hero = doc.querySelector('section[aria-label="Top stories"]');
-  // DOM order is rail, seconds, lead: sort the lead to slot 0.
   const leadCard = hero?.querySelector('.card--lead, .hero-lead');
   const slots = hero ? [...hero.querySelectorAll('.card')].sort((x, y) => (y === leadCard) - (x === leadCard)) : [];
-  // Our own src is the base path; ?r= links mean no mod_rewrite.
   const me = doc.currentScript || doc.querySelector('script[src*="app.js"]');
   const api = (me ? me.src.split('?')[0].replace(/\/assets\/js\/[^/]*$/, '') : '')
     + (doc.querySelector('a[href*="index.php?r="]') ? '/index.php?r=/api/top.json' : '/api/top.json');
-  // Interval and cards per turn: config.php, via Render. 0 seconds = off.
   const rotMs = 1000 * +(hero?.getAttribute('data-rotate-seconds') ?? 90);
-  const spin = slots.slice(0, +hero?.getAttribute('data-rotate-count') || 9);
-  // Pool[0..] is the hero as served: start one screenful in.
+  // data-pinned cards never rotate: pinning means "this stays here".
+  const rotatable = slots.filter(c => c.getAttribute('data-pinned') !== '1');
+  const spin = rotatable.slice(0, +hero?.getAttribute('data-rotate-count') || 9);
   let pool = [], cursor = slots.length, rotTimer = null;
 
   const put = (el, s) => { if (el) { el.textContent = s || ''; } };

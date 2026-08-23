@@ -597,10 +597,11 @@ ul,ol{list-style:none}
   .story>.block-head{grid-column:2;grid-row:1}
   .story-head{grid-column:2;grid-row:2}
   .story-media{grid-column:2;grid-row:3}
-  .story .article-body{grid-column:2;grid-row:4}
-  .story-extract-note{grid-column:2;grid-row:5}
-  .story .article-continue{grid-column:2;grid-row:6}
-  .credit-block{grid-column:1;grid-row:3/7;align-self:start;position:sticky;top:var(--s7);
+  .story-meta{grid-column:2;grid-row:4}
+  .story .article-body{grid-column:2;grid-row:5}
+  .story-extract-note{grid-column:2;grid-row:6}
+  .story .article-continue{grid-column:2;grid-row:7}
+  .credit-block{grid-column:1;grid-row:3/8;align-self:start;position:sticky;top:var(--s7);
     margin:0;padding:0 var(--colpad) 0 0;border-top:0;border-right:1px solid var(--plumb);text-align:right}
   .credit-grid>div{border-top-color:var(--rule)}
 }
@@ -635,3 +636,43 @@ ul,ol{list-style:none}
 .sponsor-note{margin:0 0 var(--s4);padding:.75em 1em;background:#fff8ea;border:1px solid #e9d3a3;
   font-family:var(--sans);font-size:var(--fs-ui);color:#6b4700}
 .sponsor-note b{text-transform:uppercase;letter-spacing:.08em}
+
+/* Story order: kicker + headline, then the photograph, then everything that
+   describes the piece (standfirst, byline, dateline), then the body. The image
+   sits directly under the headline because that is where a reader looks for it. */
+.story-meta{max-width:var(--measure,660px)}
+.story-meta .story-dek{margin-top:0}
+
+/* ============ phones: get the news above the fold ======================
+   Measured on a 390x844 phone before this block: ticker 49 + masthead 360 +
+   nav 50 = 493px of furniture, 58%% of the screen, and the first photograph
+   began at y=666 so almost none of it was visible. A reader had to scroll
+   half a page to reach a headline. The brand is trimmed to roughly a third
+   of that: the wordmark stays (it is the masthead) but the dateline column,
+   the edition plate, the plumb-line rule and the tagline stand down, and the
+   ticker and nav tighten. Nothing is deleted on desktop. */
+@media (max-width:640px){
+  .ticker{font-size:12px}
+  .ticker-track{padding-block:6px}
+
+  .masthead{padding-block:10px 8px}
+  .masthead-grid{grid-template-columns:1fr;gap:6px;align-items:center}
+  /* The dateline and the edition plate are desktop furniture: on a phone they
+     cost 200px and tell the reader nothing they cannot see on their own clock. */
+  .masthead-side{display:none}
+  /* The edition plate — clock, volume, issue number — is 111px of furniture
+     telling a phone user the time their own status bar already shows. */
+  .masthead-plate{display:none}
+  .masthead-brand .wordmark{font-size:clamp(26px,8.2vw,34px)}
+  .masthead-brand .wordmark::after{display:none}   /* the plumb line and its bob */
+  .masthead-brand .tag{display:none}
+  .masthead-brand .tag::before{display:none}
+  .oxford{margin-block:6px}
+
+  .nav{font-size:13px}
+  .nav a{padding-block:11px}
+
+  /* The lead photograph is the point of the page — let it start immediately. */
+  .hero{padding-top:10px}
+  .hero-lead .card-media{margin-top:8px}
+}

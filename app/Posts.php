@@ -294,6 +294,7 @@ final class Posts
         return [
             'id'            => 'p' . (int) $post['id'],
             'desk_post'     => true,
+            'desk_pinned'   => !empty($post['pinned']),
             'sponsored'     => $sponsored,
             'sponsor'       => (string) ($post['sponsor'] ?? ''),
             'sponsor_url'   => (string) ($post['sponsor_url'] ?? ''),

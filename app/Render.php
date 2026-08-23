@@ -569,7 +569,10 @@ final class Render
             $kickerEl = $kicker !== '' ? '<p class="kicker">' . self::esc($kicker) . '</p>' : '';
         }
 
-        $open = '<article class="' . self::esc(implode(' ', $classes)) . '">';
+        // Marked so the rotation script leaves it alone: an editor who pins a
+        // post to slot 1 means it stays at slot 1.
+        $pinAttr = !empty($a['desk_pinned']) ? ' data-pinned="1"' : '';
+        $open = '<article class="' . self::esc(implode(' ', $classes)) . '"' . $pinAttr . '>';
 
         // ---- lead: kicker line, headline, then the picture ----------------
         if ($size === 'lead') {
@@ -1980,9 +1983,15 @@ final class Render
         $meta[] = '<span class="story-read">' . self::esc($minutes . ' min read') . '</span>';
         $dateline = '<p class="story-dateline">' . implode('<span class="story-sep" aria-hidden="true">·</span>', $meta) . '</p>';
 
+        // The header is split so the photograph can sit directly under the
+        // headline — where the client asked for it, and where BBC and the Post
+        // put it. Everything that describes the piece rather than states it —
+        // standfirst, byline, dateline — follows the image.
         $header = '<header class="story-head">' . $kline
-            . '<h1 class="story-hed">' . self::esc($title) . '</h1>'
-            . $dek . $byline . $dateline . '</header>';
+            . '<h1 class="story-hed">' . self::esc($title) . '</h1></header>';
+        $storyMeta = ($dek !== '' || $byline !== '' || $dateline !== '')
+            ? '<div class="story-meta">' . $dek . $byline . $dateline . '</div>'
+            : '';
 
         // ---- the one eager image on this page --------------------------------
         $figure = self::storyFigure($a, $cfg, $srcName);
@@ -2042,7 +2051,7 @@ final class Render
         }
 
         $body = '<article class="block wrap story" aria-label="Story">'
-            . $head . $header . $figure . $article
+            . $head . $header . $figure . $storyMeta . $article
             . self::attribution($a, $lic, $author)
             . '</article>';
 
