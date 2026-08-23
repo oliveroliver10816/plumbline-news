@@ -1,6 +1,6 @@
 {
     "name": "plumbline/plumbline-news",
-    "description": "Plumbline News — a self-updating, full-text news site",
+    "description": "Plumbline News \u2014 a self-updating, full-text news site",
     "type": "project",
     "license": "proprietary",
     "require": {
@@ -11,6 +11,7 @@
         "ext-mbstring": "*",
         "ext-simplexml": "*",
         "ext-json": "*",
-        "ext-pdo_mysql": "*"
+        "ext-pdo_mysql": "*",
+        "ext-gd": "*"
     }
 }

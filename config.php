@@ -186,6 +186,15 @@ return [
         'charset' => 'utf8mb4',
     ],
 
+    // The editorial desk. Both values come from the environment: the path is a
+    // secret (the desk is only findable if you know it) and the key signs the
+    // session cookie and the CSRF tokens. With either missing the desk is not
+    // routed at all and every URL under it 404s exactly like any other bad path.
+    'admin' => [
+        'path'   => (string) (getenv('ADMIN_PATH') ?: ''),
+        'secret' => (string) (getenv('ADMIN_SECRET') ?: ''),
+    ],
+
     // Durable mirror. The live store is a local SQLite file, which is fast and
     // needs no service; this is the copy that survives a restart. Cloudflare D1
     // free tier is 5 GB — a thousand times a free hosted MySQL — and article ids

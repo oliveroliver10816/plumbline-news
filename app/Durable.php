@@ -246,6 +246,123 @@ final class Durable
         return $sent;
     }
 
+    /**
+     * The desk tables — posts, uploaded pictures, and the editor accounts.
+     *
+     * These matter more than the syndicated articles: a story pulled from a
+     * feed can always be fetched again, but a post the editor WROTE and a
+     * picture they uploaded exist nowhere else. If the dyno restarts and these
+     * are not mirrored, the work is simply gone.
+     */
+    private const DESK = [
+        'desk_posts' => 'id, slug, kind, status, headline, standfirst, body, section, author, '
+                      . 'sponsor, sponsor_url, media_id, pinned, slot, published_at, created_at, updated_at',
+        'desk_media' => 'id, mime, width, height, bytes, alt, data, created_at',
+        'desk_users' => 'id, username, pass_hash, role, created_at, last_login_at, fail_count',
+    ];
+
+    public static function ensureDeskSchema(array $cfg): bool
+    {
+        if (!self::enabled($cfg)) {
+            return false;
+        }
+        $ok = self::query($cfg, 'CREATE TABLE IF NOT EXISTS desk_posts (id INTEGER PRIMARY KEY, slug TEXT, kind TEXT, '
+            . 'status TEXT, headline TEXT, standfirst TEXT, body TEXT, section TEXT, author TEXT, sponsor TEXT, '
+            . 'sponsor_url TEXT, media_id INTEGER, pinned INTEGER, slot INTEGER, published_at INTEGER, '
+            . 'created_at INTEGER, updated_at INTEGER)');
+        self::query($cfg, 'CREATE TABLE IF NOT EXISTS desk_media (id INTEGER PRIMARY KEY, mime TEXT, width INTEGER, '
+            . 'height INTEGER, bytes INTEGER, alt TEXT, data TEXT, created_at INTEGER)');
+        self::query($cfg, 'CREATE TABLE IF NOT EXISTS desk_users (id INTEGER PRIMARY KEY, username TEXT UNIQUE, '
+            . 'pass_hash TEXT, role TEXT, created_at INTEGER, last_login_at INTEGER, fail_count INTEGER)');
+
+        return $ok !== null;
+    }
+
+    /**
+     * Push the desk tables up. Small enough to send whole every time, which
+     * removes any question of a partial or stale mirror — the editor's own
+     * work is not something to be clever about.
+     */
+    public static function pushDesk(PDO $p, array $cfg): int
+    {
+        if (!self::enabled($cfg)) {
+            return 0;
+        }
+        self::ensureDeskSchema($cfg);
+        $sent = 0;
+
+        foreach (self::DESK as $table => $cols) {
+            try {
+                $rows = $p->query('SELECT ' . $cols . ' FROM ' . $table)->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Throwable $e) {
+                continue;
+            }
+            if ($rows === []) {
+                continue;
+            }
+            $names = array_map('trim', explode(',', $cols));
+            $ph    = implode(',', array_fill(0, count($names), '?'));
+            foreach ($rows as $r) {
+                $vals = [];
+                foreach ($names as $n) {
+                    $vals[] = $r[$n] ?? null;
+                }
+                // REPLACE, not INSERT OR IGNORE: an edited post must overwrite
+                // the copy already up there, or the mirror silently keeps the
+                // first draft for ever.
+                $ok = self::query($cfg, 'INSERT OR REPLACE INTO ' . $table . ' (' . $cols . ') VALUES (' . $ph . ')', $vals);
+                if ($ok === null) {
+                    return $sent;
+                }
+                $sent++;
+            }
+        }
+
+        return $sent;
+    }
+
+    /** Refill empty desk tables from the mirror. */
+    public static function restoreDesk(PDO $p, array $cfg): int
+    {
+        if (!self::enabled($cfg)) {
+            return 0;
+        }
+        $total = 0;
+
+        foreach (self::DESK as $table => $cols) {
+            try {
+                if ((int) $p->query('SELECT COUNT(*) FROM ' . $table)->fetchColumn() > 0) {
+                    continue;                     // already has content
+                }
+            } catch (Throwable $e) {
+                continue;
+            }
+            $rows = self::query($cfg, 'SELECT ' . $cols . ' FROM ' . $table);
+            if ($rows === null || $rows === []) {
+                continue;
+            }
+            $names = array_map('trim', explode(',', $cols));
+            $ph    = implode(',', array_fill(0, count($names), '?'));
+            $ins   = $p->prepare('INSERT OR REPLACE INTO ' . $table . ' (' . $cols . ') VALUES (' . $ph . ')');
+            foreach ($rows as $r) {
+                $vals = [];
+                foreach ($names as $n) {
+                    $vals[] = $r[$n] ?? null;
+                }
+                try {
+                    $ins->execute($vals);
+                    $total++;
+                } catch (Throwable $e) {
+                }
+            }
+        }
+        if ($total > 0) {
+            error_log('[durable] restored ' . $total . ' desk rows from the mirror');
+        }
+
+        return $total;
+    }
+
     /** Drop anything past the retention window from the mirror. */
     public static function prune(array $cfg): int
     {

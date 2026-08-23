@@ -601,3 +601,12 @@ ul,ol{list-style:none}
      restated here or the accent silently disappears from those pages. */
   border-left:3px solid var(--accent);padding-left:12px}
 .vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+
+/* --- sponsored disclosure ---------------------------------------------
+   Paid placement has to be obvious before the click, so the kicker is
+   given its own colour and a rule rather than blending into the section
+   labels around it. */
+.kicker--sponsored{color:#8a5a00;border-left:3px solid #d79b1a;padding-left:.5em}
+.sponsor-note{margin:0 0 var(--s4);padding:.75em 1em;background:#fff8ea;border:1px solid #e9d3a3;
+  font-family:var(--sans);font-size:var(--fs-ui);color:#6b4700}
+.sponsor-note b{text-transform:uppercase;letter-spacing:.08em}

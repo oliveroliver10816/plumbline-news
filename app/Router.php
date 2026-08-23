@@ -48,6 +48,41 @@ final class Router
             return self::article($pdo, $cfg, (int) $m[1], null);
         }
 
+        // The editorial desk. Only routed when a path AND a signing key are
+        // configured; otherwise these URLs fall through to the 404 every other
+        // unknown path gets, so probing for it reveals nothing.
+        $deskPrefix = trim((string) ($cfg['admin']['path'] ?? ''), '/');
+        if ($deskPrefix !== '' && Auth::configured($cfg)) {
+            if ($route === '/' . $deskPrefix || strpos($route, '/' . $deskPrefix . '/') === 0) {
+                $rest = substr($route, strlen('/' . $deskPrefix));
+
+                return Studio::handle($pdo, $cfg, $rest === '' ? '/' : $rest, $query);
+            }
+        }
+
+        // An uploaded picture. Immutable: the id never points at different bytes.
+        if (preg_match('#^/media/(\d+)\.jpg$#', $route, $m) === 1) {
+            $img = Media::fetch($pdo, (int) $m[1]);
+            if ($img === null) {
+                return self::notFound($pdo, $cfg);
+            }
+
+            return [
+                'status'  => 200,
+                'headers' => [
+                    'Content-Type'  => $img['mime'],
+                    'Cache-Control' => 'public, max-age=31536000, immutable',
+                    'Content-Length'=> (string) strlen($img['data']),
+                ],
+                'body'    => $img['data'],
+            ];
+        }
+
+        // A post written on the desk.
+        if (preg_match('#^/post/([a-z0-9-]+)$#', $route, $m) === 1) {
+            return self::deskPost($pdo, $cfg, $m[1]);
+        }
+
         if (preg_match('#^/section/([a-z0-9-]+)$#', $route, $m) === 1) {
             return self::section($pdo, $cfg, $m[1], max(1, (int) ($query['p'] ?? 1)));
         }
@@ -132,6 +167,12 @@ final class Router
         $rows = Db::homeCandidates($pdo);
 
         $model = Compose::home($rows, $cfg, Db::nowMs());
+
+        // Posts written on the desk are spliced in AFTER composition, at the
+        // slot the editor chose. Doing it here rather than feeding them through
+        // the scorer means a pinned post lands exactly where it was put and
+        // cannot be demoted by a freshness rule it was never meant to compete in.
+        $model = self::pinDeskPosts($pdo, $cfg, $model);
 
         $model['sources'] = self::sourceNames($pdo);
 
@@ -352,6 +393,98 @@ final class Router
             'headers' => ['Content-Type' => 'application/json; charset=utf-8', 'Cache-Control' => 'no-store'],
             'body'    => (string) json_encode($payload, JSON_UNESCAPED_SLASHES),
         ];
+    }
+
+    /**
+     * Splice pinned desk posts into a composed front page.
+     *
+     * Slot 1 takes the lead position and pushes the existing lead down into the
+     * secondary row, so nothing is lost. Slots 2-5 go to the top of that
+     * secondary row; anything beyond goes to the head of the first block. A
+     * pinned post whose picture failed to store still appears — it simply
+     * renders as a text card, which is better than a hole where the editor put
+     * something deliberately.
+     *
+     * @param  array<string,mixed> $model
+     * @return array<string,mixed>
+     */
+    private static function pinDeskPosts(PDO $pdo, array $cfg, array $model): array
+    {
+        try {
+            $pinned = Posts::pinned($pdo, Posts::SLOTS);
+        } catch (Throwable $e) {
+            return $model;
+        }
+        if ($pinned === []) {
+            return $model;
+        }
+
+        $subs = is_array($model['hero']['subs'] ?? null) ? $model['hero']['subs'] : [];
+        foreach ($pinned as $row) {
+            $mid = (int) ($row['media_id'] ?? 0);
+            if ($mid > 0) {
+                $m = Media::meta($pdo, $mid);
+                if (is_array($m)) {
+                    $row['media_width']  = (int) $m['width'];
+                    $row['media_height'] = (int) $m['height'];
+                }
+            }
+            $a    = Posts::asArticle($row, $cfg);
+            $slot = (int) ($row['slot'] ?? 0);
+
+            if ($slot === 1) {
+                $old = $model['hero']['lead'] ?? null;
+                $model['hero']['lead'] = $a;
+                if (is_array($old)) {
+                    array_unshift($subs, $old);
+                }
+                continue;
+            }
+            if ($slot >= 2 && $slot <= 5) {
+                array_unshift($subs, $a);
+                continue;
+            }
+            if (isset($model['blocks'][0]['items']) && is_array($model['blocks'][0]['items'])) {
+                array_unshift($model['blocks'][0]['items'], $a);
+            } else {
+                $subs[] = $a;
+            }
+        }
+        $model['hero']['subs'] = $subs;
+
+        return $model;
+    }
+
+    /** A post written on the desk, rendered as an ordinary article page. */
+    private static function deskPost(PDO $pdo, array $cfg, string $slug): array
+    {
+        $row = Posts::bySlug($pdo, $slug);
+        if ($row === null || ($row['status'] ?? '') !== Posts::STATUS_PUBLISHED) {
+            return self::notFound($pdo, $cfg);
+        }
+        $media = (int) ($row['media_id'] ?? 0) > 0 ? Media::meta($pdo, (int) $row['media_id']) : null;
+        if (is_array($media)) {
+            $row['media_width']  = (int) $media['width'];
+            $row['media_height'] = (int) $media['height'];
+        }
+
+        $a = Posts::asArticle($row, $cfg);
+
+        $model = [
+            'article'   => $a,
+            'related'   => Db::recentArticles($pdo, ['limit' => 6]),
+            'jsonld'    => Seo::articleJsonLd($a, $cfg),
+            'canonical' => Paths::absolute('/post/' . $slug),
+            'route'     => '/post/' . $slug,
+            'ticker'    => self::ticker($pdo, $cfg),
+            'sources'   => self::sourceNames($pdo),
+        ];
+
+        // A sponsored post is never cached as hard as editorial, so pulling one
+        // down takes effect quickly.
+        $ttl = $a['sponsored'] ? 60 : (int) ($cfg['cache']['article_seconds'] ?? 600);
+
+        return self::html(Render::article($model, $cfg), 200, $ttl);
     }
 
     private static function healthz(PDO $pdo, array $cfg): array

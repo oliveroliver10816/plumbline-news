@@ -26,6 +26,10 @@ require_once TEB_ROOT . '/app/Images.php';
 require_once TEB_ROOT . '/app/Placeholder.php';
 require_once TEB_ROOT . '/app/Db.php';
 require_once TEB_ROOT . '/app/Durable.php';
+require_once TEB_ROOT . '/app/Auth.php';
+require_once TEB_ROOT . '/app/Posts.php';
+require_once TEB_ROOT . '/app/Media.php';
+require_once TEB_ROOT . '/app/Studio.php';
 require_once TEB_ROOT . '/app/Ingest.php';
 require_once TEB_ROOT . '/app/Compose.php';
 require_once TEB_ROOT . '/app/Render.php';
@@ -102,6 +106,11 @@ final class App
             error_log('[teb] migrate skipped (database not writable): ' . $e->getMessage());
         }
         try {
+            Posts::migrate($pdo);
+        } catch (Throwable $e) {
+            error_log('[teb] desk migrate skipped: ' . $e->getMessage());
+        }
+        try {
             Db::upsertSources($pdo, Feeds::all());
         } catch (Throwable $e) {
             error_log('[teb] source refresh skipped (database not writable): ' . $e->getMessage());
@@ -114,6 +123,7 @@ final class App
         try {
             Durable::ensureSchema($cfg);
             Durable::restore($pdo, $cfg);
+            Durable::restoreDesk($pdo, $cfg);
         } catch (Throwable $e) {
             error_log('[teb] durable restore skipped: ' . $e->getMessage());
         }

@@ -258,6 +258,13 @@ final class Render
      */
     public static function articleHref(array $a): string
     {
+        // A post written on the desk carries its own permalink; it does not live
+        // at /article/{id} because it is not a syndicated row.
+        $own = self::s($a['href'] ?? '');
+        if ($own !== '' && $own[0] === '/') {
+            return $own;
+        }
+
         $id = (int) ($a['id'] ?? 0);
         if ($id < 1) {
             return '/';
@@ -383,7 +390,8 @@ final class Render
         // Our own placeholder is a site-relative path, and outbound() rejects
         // anything without a scheme and host — which is right for a publisher
         // URL and wrong for ours. Let ours through untouched.
-        $isOwn = $raw !== '' && Placeholder::isPlaceholder($raw);
+        $isOwn = $raw !== '' && (Placeholder::isPlaceholder($raw)
+            || strpos($raw, Paths::url('/media/')) === 0);
         $src   = $isOwn ? $raw : self::outbound($raw);
         if ($src === '') {
             return '';
@@ -550,7 +558,16 @@ final class Render
                 . '</a>';
         }
 
-        $kickerEl = $kicker !== '' ? '<p class="kicker">' . self::esc($kicker) . '</p>' : '';
+        // A sponsored card says so on the card. The FTC requires the disclosure to
+        // be where the reader sees it BEFORE clicking, not on the page after.
+        if (!empty($a['sponsored'])) {
+            $sp = self::s($a['sponsor'] ?? '');
+            $kickerEl = '<p class="kicker kicker--sponsored">'
+                . self::esc($sp !== '' ? 'Sponsored · ' . $sp : 'Sponsored')
+                . '</p>';
+        } else {
+            $kickerEl = $kicker !== '' ? '<p class="kicker">' . self::esc($kicker) . '</p>' : '';
+        }
 
         $open = '<article class="' . self::esc(implode(' ', $classes)) . '">';
 
@@ -1971,7 +1988,24 @@ final class Render
         $figure = self::storyFigure($a, $cfg, $srcName);
 
         // ---- body ------------------------------------------------------------
-        $article = '<div class="article-body">' . $paras . '</div>';
+        // Paid placement is disclosed above the story, not buried under it, and
+        // the sponsor's own link carries rel="sponsored" — Google's stated
+        // requirement for a paid link, and the FTC's for the label.
+        $sponsorNote = '';
+        if (!empty($a['sponsored'])) {
+            $sp  = self::s($a['sponsor'] ?? '');
+            $spu = self::outbound(self::s($a['sponsor_url'] ?? ''));
+            $sponsorNote = '<p class="sponsor-note"><b>Sponsored content</b> — '
+                . ($sp !== '' ? 'paid for by ' . self::esc($sp) : 'this post was paid for')
+                . '. It was not produced by the newsroom'
+                . ($spu !== ''
+                    ? ' · <a href="' . self::esc($spu) . '" rel="sponsored noopener nofollow" target="_blank">Visit '
+                      . self::esc($sp !== '' ? $sp : 'the sponsor') . ' &rarr;</a>'
+                    : '')
+                . '</p>';
+        }
+
+        $article = '<div class="article-body">' . $sponsorNote . $paras . '</div>';
 
         if ($isExtract) {
             $article .= '<p class="story-extract-note">'
@@ -2100,6 +2134,17 @@ final class Render
         // deliberately NOT symmetrical — mayShowImage() lets an unknown row keep
         // its image, because the rows the site generates for itself are unknown to
         // the registry by definition and they are not a licence risk.
+        // A post written on this desk is OUR work. It is not syndicated, there is
+        // no third-party licence over it, and printing "publishes under a licence
+        // which does not permit republication" on our own article is nonsense.
+        if (!empty($a['desk_post'])) {
+            return [
+                'license' => '', 'license_url' => '', 'attribution' => '', 'extract' => false,
+                'images' => true, 'name' => self::s($a['source_name'] ?? ''),
+                'homepage' => '', 'notes' => '', 'own' => true,
+            ];
+        }
+
         $known = $slug !== '' && Feeds::bySlug($slug) !== null;
         $lic   = $known
             ? Feeds::licence($slug)
@@ -2253,7 +2298,9 @@ final class Render
      */
     public static function paragraphs(string $text): string
     {
-        $text = trim($text);
+        // Tolerate CRLF whatever produced it — a form post, a Windows paste, a
+        // feed that ships \r\n. Without this the blank-line split never fires.
+        $text = trim(str_replace(["\r\n", "\r"], "\n", $text));
         if ($text === '') {
             return '';
         }

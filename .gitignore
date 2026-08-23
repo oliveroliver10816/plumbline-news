@@ -8,3 +8,4 @@ dist/
 .gstack/
 *.log
 _dev.php
+data/*.state

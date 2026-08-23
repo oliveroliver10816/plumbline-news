@@ -360,3 +360,146 @@ ul,ol{list-style:none}
   .ticker-vp{overflow-x:auto}
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
 }
+
+/* ==========================================================================
+   RENDERER EXTENSION — app/Render.php + assets/js/app.js only.
+   Nothing above this line is modified. Every value below either (a) restates
+   a value the designer already chose, or (b) styles a control the design
+   system has no class for. No colour, size or spacing decision is changed.
+   ========================================================================== */
+
+/* --- theme control ------------------------------------------------------
+   The design is LIGHT ONLY: there is no prefers-color-scheme block, so the
+   page is light for every visitor regardless of OS setting — the client's
+   rule. app.js still ships a three-state toggle; here "system" and "light"
+   both resolve to the one light palette, and only an EXPLICIT reader choice
+   of dark applies the palette below. It is never automatic.               */
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{
+  --paper:#17181A; --paper-2:#1D1F22; --well:#24262A;
+  --ink:#E8E6E1; --ink-2:#A8A49D;
+  --rule:#2E3034; --plumb:#E8E6E1;
+  --accent:#E08790; --up:#7FC792;
+  --chip-bg:#7A1B26; --chip-ink:#FFFFFF;
+  color-scheme:dark;
+}
+
+/* the toggle itself sits in the nav tail; it borrows .nav a's metrics
+   exactly so the row keeps one rhythm and the 44px target is preserved */
+.theme-toggle{display:flex;align-items:center;gap:8px;min-height:48px;padding:0 clamp(10px,.9vw,19px);
+  background:none;border:0;cursor:pointer;color:var(--ink-2);
+  font:600 var(--fs-ui)/1 var(--sans);letter-spacing:.09em;text-transform:uppercase}
+.theme-toggle:hover{color:var(--ink)}
+.theme-toggle .tt-icon{font:400 14px/1 var(--mono)}
+.theme-toggle .tt-text{font:inherit}
+/* the control is useless without JS, so it stays out of the row until app.js
+   marks it ready — and .tt-ready is a class, not [hidden], because .nav li's
+   own display would beat the UA's [hidden]{display:none} */
+.nav li.tt{display:none}
+.nav li.tt.tt-ready{display:flex}
+
+/* --- ad slots: per-slot geometry from config.ads.slots ------------------
+   The designer's numbers are the defaults below (970x250 billboard, 110px
+   on phones, 300x250 box). A configured slot of another size only fills in
+   --ad-w/--ad-h, so a 728x90 unit reserves 90px instead of 250 and enabling
+   ads still shifts nothing.                                                */
+.adslot{--ad-w:970px;--ad-h:250px}
+.adslot .adslot-frame{width:min(var(--ad-w),100%);min-height:var(--ad-h)}
+.adslot--box{--ad-w:300px;--ad-h:250px}
+@media (max-width:768px){
+  .adslot .adslot-frame{min-height:min(var(--ad-h),110px)}
+  .adslot--box .adslot-frame{min-height:var(--ad-h)}
+}
+/* the empty mount a real ad tag fills, inside the already-reserved frame */
+.adslot-mount{display:block;width:100%;min-height:inherit}
+
+/* === STANDING PAGES ======================================================
+   app/Pages.php — About, Editorial Standards, Contact, Privacy, Terms.
+   The plumb-line grammar carries through: the prose, every licence block and
+   the form all hang from their own 1px vertical rule, and nothing is
+   separated by a horizontal one. Colour comes only from the tokens, so the
+   three-state theme toggle and the AA guarantees hold here too.            */
+
+.page{max-width:none}
+.page-head{padding-bottom:var(--s5);margin-bottom:var(--s6);border-bottom:1px solid var(--rule)}
+.page-kicker{margin:0 0 var(--s4);border-left:3px solid var(--accent);padding-left:12px}
+.page-title{font:700 clamp(30px,2.3vw,46px)/1.1 var(--serif);letter-spacing:.005em;color:var(--ink);margin:0}
+.page-standfirst{max-width:56ch;margin:var(--s4) 0 0;font:400 clamp(18px,1.2vw,22px)/1.5 var(--serif);color:var(--ink-2)}
+.page-meta{margin:var(--s4) 0 0;font:400 var(--fs-meta)/1.4 var(--mono);letter-spacing:.06em;color:var(--ink-2)}
+
+/* the prose hangs from a plumb line, exactly as the article body does */
+.page-prose{max-width:70ch;font:400 19px/1.75 var(--serif);color:var(--ink);border-left:1px solid var(--rule);padding-left:clamp(16px,2vw,32px)}
+.page-prose h2{margin:var(--s7) 0 var(--s4);border-left:3px solid var(--accent);padding-left:12px;margin-left:calc(-1 * clamp(16px,2vw,32px));font:700 14px/1.35 var(--sans);letter-spacing:.15em;text-transform:uppercase;color:var(--accent)}
+.page-prose h3{margin:var(--s6) 0 var(--s3);font:600 21px/1.3 var(--serif);color:var(--ink)}
+.page-prose p{margin:0 0 1.05em}
+.page-prose ul,.page-prose ol{margin:0 0 1.15em;padding-left:1.3em}
+.page-prose li{margin:0 0 .55em}
+.page-prose li::marker{color:var(--accent)}
+.page-prose strong{font-weight:700;color:var(--ink)}
+.page-prose em{font-style:italic}
+.page-prose a{color:var(--ink);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px;text-decoration-color:var(--accent)}
+.page-prose a:hover{color:var(--accent);text-decoration-thickness:2px}
+.page-prose code{font:400 .84em/1.4 var(--mono);background:var(--paper-2);padding:1px 5px;word-break:break-word}
+
+/* the licences — one hung block each, not a table */
+.lic-list{margin:var(--s5) 0 var(--s6);display:grid;gap:var(--s5)}
+.lic{border-left:1px solid var(--plumb);padding-left:20px}
+.lic-name{margin:0 0 var(--s3);font:700 20px/1.3 var(--serif);color:var(--ink)}
+.lic-who,.lic-what{margin:0 0 6px;font:400 16px/1.55 var(--sans);color:var(--ink)}
+.lic-tag{display:inline-block;min-width:5.6em;margin-right:8px;font:700 11px/1.6 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+.lic-why{margin:10px 0 0;font:italic 400 16px/1.6 var(--sans);color:var(--ink-2)}
+
+/* contact addresses — the mono face this design reserves for anything typed */
+.page-contacts{margin:var(--s5) 0 var(--s6)}
+.page-contacts dt{margin-top:var(--s5);font:600 15px/1.5 var(--sans);color:var(--ink)}
+.page-contacts dd{margin:4px 0 0;padding-bottom:var(--s4);border-bottom:1px solid var(--rule)}
+.page-contacts dd a{display:inline-flex;align-items:center;min-height:44px;font:500 clamp(16px,1.1vw,18px)/1.4 var(--mono);color:var(--ink);text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--accent);word-break:break-word}
+.page-contacts dd a:hover{color:var(--accent)}
+.page-contacts .cd-note{display:block;margin-top:2px;font:italic 400 15px/1.55 var(--sans);color:var(--ink-2)}
+
+/* the note aimed at whoever switches advertising on */
+.page-note{margin:var(--s5) 0;padding:var(--s4) var(--s5);background:var(--paper-2);border-left:3px solid var(--accent);font:400 17px/1.65 var(--sans);color:var(--ink)}
+
+/* contact form — 1px ink rules and the filled ink button of the search bar */
+.cform{max-width:38rem;margin:var(--s5) 0 var(--s6)}
+.cform-row{margin-bottom:var(--s5)}
+.cform-row label{display:block;margin-bottom:6px;font:600 13px/1.5 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)}
+.cform-row input,.cform-row textarea{display:block;width:100%;min-height:48px;padding:12px 14px;border:1px solid var(--plumb);background:var(--paper);color:var(--ink);font:400 17px/1.5 var(--sans)}
+.cform-row textarea{min-height:180px;resize:vertical}
+.cform-row input:focus-visible,.cform-row textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cform-hp{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+.cform-actions{margin-top:var(--s5)}
+.cform-send{min-height:48px;padding:0 var(--s6);border:1px solid var(--plumb);background:var(--ink);color:var(--paper);font:700 var(--fs-ui) var(--sans);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.cform-send:hover{background:var(--accent);border-color:var(--accent)}
+
+@media (max-width:640px){
+  .page-prose{font-size:18px;border-left:0;padding-left:0}
+  .page-prose h2{margin-left:0}
+  .lic{padding-left:16px}
+}
+
+/* two-column standing page: the contents rail hangs from its own plumb line on
+   the right; the prose keeps its measure. Width buys a column, not margin. */
+.page-body{display:grid;grid-template-columns:minmax(0,72ch) clamp(230px,20vw,320px);justify-content:start;gap:clamp(24px,3.6vw,72px);align-items:start}
+.page-body>.page-prose{grid-column:1;grid-row:1}
+.page-toc{grid-column:2;grid-row:1;position:sticky;top:var(--s5);border-left:1px solid var(--rule);padding-left:20px}
+.page-toc-h{font:700 11px/1.6 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 var(--s2)}
+.page-toc ul{list-style:none;margin:0;padding:0}
+.page-toc a{display:flex;align-items:center;min-height:44px;font:400 15px/1.35 var(--sans);color:var(--ink-2)}
+.page-toc a:hover{color:var(--accent)}
+.page-prose h2{scroll-margin-top:96px}
+.page-prose h3{scroll-margin-top:96px}
+@media (min-width:1900px){
+  .page-prose{max-width:82ch}
+  .page-body{grid-template-columns:minmax(0,84ch) 340px}
+}
+@media (max-width:1100px){
+  .page-body{grid-template-columns:minmax(0,1fr)}
+  .page-body>.page-prose,.page-body>.page-toc{grid-column:1;grid-row:auto}
+  .page-toc{position:static;margin-bottom:var(--s6);border-left:0;padding-left:0;border-top:1px solid var(--rule);padding-top:var(--s3)}
+  .page-toc ul{columns:2;column-gap:24px}
+  .page-toc li{break-inside:avoid}
+}
+@media (max-width:640px){
+  .page-toc ul{columns:1}
+}

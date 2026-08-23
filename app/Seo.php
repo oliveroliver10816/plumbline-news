@@ -303,6 +303,26 @@ final class Seo
             ];
         }
 
+        // Posts written on the desk belong in the sitemap — they are the only
+        // wholly original pages on the site. Sponsored ones do NOT: pushing paid
+        // placement into a search index as editorial is what gets a publisher
+        // penalised, and it is excluded from the news sitemap for the same reason.
+        try {
+            foreach (Posts::published($p, 500) as $dp) {
+                if (($dp['kind'] ?? '') === Posts::KIND_SPONSORED) {
+                    continue;
+                }
+                $out[] = [
+                    'loc'        => Paths::absolute('/post/' . (string) $dp['slug']),
+                    'lastmod'    => (int) ($dp['updated_at'] ?: $dp['published_at']),
+                    'changefreq' => 'weekly',
+                    'priority'   => '0.8',
+                ];
+            }
+        } catch (\Throwable $e) {
+            // the desk may not be migrated yet; the sitemap is still valid
+        }
+
         foreach (self::sectionSlugs($counts) as $slug) {
             if (isset(self::SECTION_ROUTES[$slug]) || ((int) ($counts[$slug] ?? 0)) < 1) {
                 continue;
@@ -414,6 +434,9 @@ final class Seo
      */
     public static function newsSitemap(PDO $p, array $cfg = []): string
     {
+        // Sponsored posts are excluded from syndication and from Google News.
+        // Paid placement pushed through a news feed is exactly what gets a
+        // publisher removed from it.
         $now    = self::nowMs();
         $cutoff = $now - (self::NEWS_WINDOW_HOURS * 3600 * 1000);
 
@@ -480,6 +503,9 @@ final class Seo
      */
     public static function rss(PDO $p, array $cfg = [], ?string $section = null): string
     {
+        // Sponsored posts are excluded from syndication and from Google News.
+        // Paid placement pushed through a news feed is exactly what gets a
+        // publisher removed from it.
         $slug = self::sectionSlug($section);
 
         $opts = ['limit' => self::RSS_MAX_ITEMS];
