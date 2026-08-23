@@ -2296,6 +2296,33 @@ final class Render
      * reordered, shortened or rewritten: every one of these licences is ND or
      * asks for the piece whole, and a "tidied" article is a derivative work.
      */
+    /**
+     * The small amount of markdown a writer types without thinking: **bold**,
+     * *italic*, and [text](url). Everything is escaped FIRST and only these
+     * three patterns are turned back into tags, so no markup from the source
+     * text can reach the page.
+     */
+    public static function inline(string $text): string
+    {
+        $s = self::esc($text);
+        $s = (string) preg_replace('/\*\*(?!\s)(.+?)(?<!\s)\*\*/u', '<strong>$1</strong>', $s);
+        $s = (string) preg_replace('/(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])/u', '<em>$1</em>', $s);
+        $s = (string) preg_replace_callback(
+            '/\[(.+?)\]\((https?:\/\/[^\s)]+)\)/u',
+            static function (array $m): string {
+                $u = self::outbound(html_entity_decode($m[2], ENT_QUOTES, 'UTF-8'));
+                if ($u === '') {
+                    return $m[1];
+                }
+
+                return '<a href="' . self::esc($u) . '" rel="noopener nofollow" target="_blank">' . $m[1] . '</a>';
+            },
+            $s
+        );
+
+        return $s;
+    }
+
     public static function paragraphs(string $text): string
     {
         // Tolerate CRLF whatever produced it — a form post, a Windows paste, a
@@ -2316,7 +2343,10 @@ final class Render
             // did not tag. Keep it visible rather than gluing the words
             // together, which is what a plain implode would do.
             $lines = array_filter(array_map('trim', preg_split('/\n/', $chunk) ?: []), static fn(string $l): bool => $l !== '');
-            $out  .= '<p>' . implode('<br>', array_map([self::class, 'esc'], $lines)) . '</p>';
+            // inline() escapes first, then re-introduces only **bold**, *italic*
+            // and [text](url) — so a writer's markdown works without any source
+            // markup ever reaching the page.
+            $out  .= '<p>' . implode('<br>', array_map([self::class, 'inline'], $lines)) . '</p>';
         }
 
         return $out;

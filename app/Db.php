@@ -1894,6 +1894,9 @@ final class Db
      */
     public const HOME_WINDOW_HOURS = 96;
 
+    /** Oldest a story may be and still reach the front page via a desk top-up. */
+    public const HOME_TOPUP_WINDOW_HOURS = 336;   // 14 days
+
     /** Rows taken by the flat read before the per-desk top-up runs. */
     public const HOME_FLAT_LIMIT = 500;
 
@@ -1954,7 +1957,16 @@ final class Db
         foreach (Feeds::sections() as $slug => $desk) {
             $n = ($desk['home'] ?? null) !== null ? self::HOME_TOPUP_HOME : self::HOME_TOPUP_OTHER;
             try {
-                $extra = self::recentArticles($p, ['section' => [(string) $slug], 'limit' => $n]);
+                // The per-desk top-up MUST carry a window too. Without one it takes the
+                // newest N in a section however old they are, and on a roster of
+                // long-form publishers that dragged 58-DAY-OLD items onto the front
+                // page of a news site. Wider than the flat read so a quiet desk is not
+                // empty, but never unbounded.
+                $extra = self::recentArticles($p, [
+                    'section'      => [(string) $slug],
+                    'limit'        => $n,
+                    'window_hours' => self::HOME_TOPUP_WINDOW_HOURS,
+                ]);
             } catch (Throwable $e) {
                 continue;                       // one bad desk must not empty the page
             }

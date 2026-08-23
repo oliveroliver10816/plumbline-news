@@ -181,7 +181,7 @@ final class Posts
             'slug'         => $slug,
             'kind'         => in_array($in['kind'] ?? '', [self::KIND_ARTICLE, self::KIND_SPONSORED], true) ? $in['kind'] : self::KIND_ARTICLE,
             'status'       => ($in['status'] ?? '') === self::STATUS_PUBLISHED ? self::STATUS_PUBLISHED : self::STATUS_DRAFT,
-            'headline'     => mb_substr(trim((string) ($in['headline'] ?? '')), 0, 300),
+            'headline'     => mb_substr(self::stripMarkdown((string) ($in['headline'] ?? '')), 0, 300),
             'standfirst'   => mb_substr(trim(self::normaliseText((string) ($in['standfirst'] ?? ''))), 0, 2000),
             // Browsers submit CRLF from a textarea. Every paragraph split in the
             // renderer looks for \n{2,}, which never matches \r\n\r\n — so an
@@ -219,6 +219,27 @@ final class Posts
     public static function delete(PDO $p, int $id): void
     {
         $p->prepare('DELETE FROM desk_posts WHERE id = ?')->execute([$id]);
+    }
+
+    /**
+     * Strip the markdown people reflexively type into a plain-text field.
+     *
+     * The client's first post was headlined `**SHOCKING NEWS: ...**` — asterisks
+     * and all, because a headline field looks like somewhere markdown works. It
+     * does not: a headline is one line of plain text that goes into an <h1>, a
+     * <title> and an og:title, and literal asterisks in a browser tab look
+     * broken. Emphasis is honoured in the BODY instead (see Render::inline).
+     */
+    public static function stripMarkdown(string $s): string
+    {
+        $s = (string) preg_replace('/\*\*\*(.+?)\*\*\*/u', '$1', $s);
+        $s = (string) preg_replace('/\*\*(.+?)\*\*/u', '$1', $s);
+        $s = (string) preg_replace('/(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])/u', '$1', $s);
+        $s = (string) preg_replace('/(?<![\w_])__(.+?)__(?![\w_])/u', '$1', $s);
+        $s = (string) preg_replace('/^#{1,6}\s+/u', '', trim($s));
+        $s = (string) preg_replace('/\[(.+?)\]\((?:[^)]*)\)/u', '$1', $s);
+
+        return trim($s);
     }
 
     /** CRLF and lone CR to LF, and trim trailing space on each line. */

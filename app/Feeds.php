@@ -238,6 +238,30 @@ final class Feeds
 
         // ------------------------------------------------------------ tier 1
         [
+            'slug' => 'tc-au', 'name' => 'The Conversation (Australia)', 'publisher' => 'the-conversation',
+            'feed' => 'https://theconversation.com/au/articles.atom',
+            'section' => 'world', 'country' => 'AU',
+            'tier' => 1, 'rank' => 2, 'weight' => 1.05, 'per_day' => 9.0,
+            'extract' => false, 'images' => true,
+            'license' => 'CC BY-ND 4.0',
+            'license_url' => 'https://creativecommons.org/licenses/by-nd/4.0/',
+            'attribution' => 'This article is republished from The Conversation under a Creative Commons licence.',
+            'notes' => 'A different timezone to the US edition, so it fills the American night when the US desks are asleep. Measured newest 5.2h.',
+            'homepage' => 'https://theconversation.com/au',
+        ],
+        [
+            'slug' => 'commondreams', 'name' => 'Common Dreams', 'publisher' => 'common-dreams',
+            'feed' => 'https://www.commondreams.org/feeds/news.rss',
+            'section' => 'politics', 'country' => 'US',
+            'tier' => 1, 'rank' => 1, 'weight' => 1.30, 'per_day' => 12.0,
+            'extract' => false, 'images' => true,
+            'license' => 'CC BY-SA 4.0',
+            'license_url' => 'https://creativecommons.org/licenses/by-sa/4.0/',
+            'attribution' => 'This story was originally published by Common Dreams.',
+            'notes' => 'Measured 2026-08-23: newest item 1.5h old, median body 4,950 chars. One of only two sources on this roster that is BOTH full-text and genuinely fast.',
+            'homepage' => 'https://www.commondreams.org/',
+        ],
+        [
             'slug' => 'grist', 'name' => 'Grist', 'publisher' => 'grist',
             'feed' => 'https://grist.org/feed/',
             'section' => 'environment', 'country' => 'US',

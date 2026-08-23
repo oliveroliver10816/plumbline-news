@@ -273,6 +273,7 @@ final class Studio
         foreach ($rows as $r) {
             $sponsored = ($r['kind'] ?? '') === Posts::KIND_SPONSORED;
             $live      = ($r['status'] ?? '') === Posts::STATUS_PUBLISHED;
+            $future    = $live && (int) ($r['published_at'] ?? 0) > Db::nowMs();
             $mid       = (int) ($r['media_id'] ?? 0);
             $thumb     = $mid > 0
                 ? '<img src="' . self::esc(Paths::url('/media/' . $mid . '.jpg')) . '" alt="" loading="lazy" decoding="async" width="160" height="90">'
@@ -282,7 +283,8 @@ final class Studio
                 . '<span class="meta">'
                 . '<span class="tags">'
                 . ($sponsored ? '<b class="tag sponsored">Sponsored</b>' : '')
-                . '<b class="tag ' . ($live ? 'live' : 'draft') . '">' . ($live ? 'Published' : 'Draft') . '</b>'
+                . '<b class="tag ' . ($future ? 'sched' : ($live ? 'live' : 'draft')) . '">'
+                . ($future ? 'Scheduled ' . self::esc(date('j M H:i', (int) ($r['published_at'] / 1000))) : ($live ? 'Published' : 'Draft')) . '</b>'
                 . (!empty($r['pinned']) ? '<b class="tag pin">Front page · slot ' . (int) $r['slot'] . '</b>' : '')
                 . '</span>'
                 . '<span class="hed">' . self::esc((string) $r['headline']) . '</span>'
@@ -323,12 +325,31 @@ final class Studio
             $slots .= '<option value="' . $i . '"' . ((int) $v('slot') === $i ? ' selected' : '') . '>Slot ' . $i . '</option>';
         }
 
-        $saved = isset($_GET['saved']) ? '<div class="note good">Saved.'
-            . (isset($_GET['m']) ? ' ' . self::esc((string) $_GET['m']) : '')
-            . ($v('status') === Posts::STATUS_PUBLISHED
-                ? ' <a href="' . self::esc(Paths::url('/post/' . $v('slug'))) . '" target="_blank" rel="noopener">View it on the site →</a>'
-                : ' It is a draft, so it is not on the site yet.')
-            . '</div>' : '';
+        $pubMs    = (int) $v('published_at');
+        $isFuture = $pubMs > Db::nowMs();
+        $tz       = (string) ($cfg['site']['timezone'] ?? 'UTC');
+
+        if (isset($_GET['saved'])) {
+            $msg = 'Saved.' . (isset($_GET['m']) ? ' ' . self::esc((string) $_GET['m']) : '');
+            if ($v('status') !== Posts::STATUS_PUBLISHED) {
+                $saved = '<div class="note good">' . $msg . ' It is a draft, so it is not on the site yet.</div>';
+            } elseif ($isFuture) {
+                // The single most confusing thing the desk can do is accept a
+                // publish and show nothing. Say exactly when it appears, in the
+                // site's own clock, and offer the one-click fix.
+                $saved = '<div class="note warn">' . $msg
+                    . ' <b>It is scheduled, not live.</b> This post is dated '
+                    . self::esc(date('j M Y, H:i T', (int) ($pubMs / 1000)))
+                    . ' — about ' . self::esc(self::humanGap($pubMs - Db::nowMs()))
+                    . ' from now — so it will not appear on the site until then.'
+                    . ' Clear the publish date to put it live immediately.</div>';
+            } else {
+                $saved = '<div class="note good">' . $msg
+                    . ' <a href="' . self::esc(Paths::url('/post/' . $v('slug'))) . '" target="_blank" rel="noopener">View it on the site →</a></div>';
+            }
+        } else {
+            $saved = '';
+        }
 
         $pv = $mid > 0
             ? '<div class="preview"><img src="' . self::esc(Paths::url('/media/' . $mid . '.jpg')) . '" alt="current picture"><span>Uploading a new file replaces this.</span></div>'
@@ -361,7 +382,9 @@ final class Studio
             . '<label>Front-page position<select name="slot"><option value="0">Not pinned</option>' . $slots . '</select></label>'
             . '<label>Section<select name="section">' . $opts . '</select></label>'
             . '<label>Byline<input name="author" value="' . self::esc($v('author', (string) $user['username'])) . '" maxlength="120"></label>'
-            . '<label>Publish date <span class="hint">blank = now</span><input name="published_at" type="datetime-local" value="' . self::esc(self::localInput((int) $v('published_at'))) . '"></label>'
+            . '<label>Publish date <span class="hint">blank = publish now · times are ' . self::esc($tz) . '</span>'
+            . '<input name="published_at" type="datetime-local" value="' . self::esc(self::localInput((int) $v('published_at'))) . '"></label>'
+            . ($isFuture ? '<p class="hint warnhint">Dated in the future — this post is scheduled and will not show on the site yet.</p>' : '')
             . '<label>URL slug <span class="hint">blank = from the headline</span><input name="slug" value="' . self::esc($v('slug')) . '" maxlength="220"></label>'
             . '</div>'
 
@@ -417,6 +440,21 @@ final class Studio
     private static function csrfField(array $cfg, array $user): string
     {
         return '<input type="hidden" name="csrf" value="' . self::esc(Auth::csrf($cfg, $user)) . '">';
+    }
+
+    /** "8 hours", "12 minutes" — for telling the editor how far off a schedule is. */
+    private static function humanGap(int $ms): string
+    {
+        $m = (int) round($ms / 60000);
+        if ($m < 60) {
+            return $m . ' minute' . ($m === 1 ? '' : 's');
+        }
+        $h = (int) round($m / 60);
+        if ($h < 48) {
+            return $h . ' hour' . ($h === 1 ? '' : 's');
+        }
+
+        return (int) round($h / 24) . ' days';
     }
 
     private static function when(int $ms): string
@@ -493,6 +531,9 @@ a{color:var(--accent)}
 .tag.draft{background:#eceef0;color:var(--ink2)}
 .tag.sponsored{background:#fff2d6;color:#8a5a00}
 .tag.pin{background:#efe6e8;color:var(--accent)}
+.tag.sched{background:#fff2d6;color:#8a5a00}
+.note.warn{background:#fff8ea;border:1px solid #e9d3a3;color:#6b4700}
+.warnhint{color:#8a5a00;font-weight:600}
 .grid{display:grid;grid-template-columns:1fr;gap:20px}
 @media(min-width:900px){.grid{grid-template-columns:minmax(0,1fr) 340px}}
 label{display:block;margin:0 0 14px;font-size:13px;font-weight:600;color:var(--ink2)}

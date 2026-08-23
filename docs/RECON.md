@@ -70,6 +70,8 @@ still exists to bound a pathological feed: one Grist item measured 84,387 charac
 because the feed carried the whole page. Where it does bite, the cut lands on a paragraph,
 sentence or word boundary, is marked with an ellipsis, and `app/Render.php` prints a line
 telling the reader the rest is at the publisher.
+| `https://www.commondreams.org/feeds/news.rss` | **4,950** | 15/15 | CC BY-SA 4.0 | **newest 1.5h** — fast AND full |
+| `https://theconversation.com/au/articles.atom` | 5,765 | 0/15 | CC BY-ND 4.0 | newest 5.2h — fills the US night |
 
 ## Measured and rejected — do not re-add
 
@@ -138,3 +140,56 @@ is a one-word change per source in `app/Feeds.php` if a publisher ever grants mo
 2. **These sources are slow by wire standards** — a few times a day, not every ten minutes.
    That is exactly why the front page is tiered: three feeds on a ten-minute cycle at the
    top, the rest on thirty minutes and an hour, lower down.
+
+## Freshness audit — 2026-08-23, and what it changed
+
+The first roster was chosen purely on article LENGTH and it produced a news site showing
+week-old news. Measured on the live pool before the fix:
+
+| | |
+|---|---|
+| Front-page lead | **43 hours old** |
+| Freshest story anywhere in the candidate pool | 24.5 hours |
+| Median age of the pool | **145 hours (6 days)** |
+| Oldest story reaching the front page | **1,393 hours (58 days)** |
+| Stories under 6 hours old | **0 of 240** |
+
+Per-feed newest-item age, measured the same day:
+
+| Feed | Newest item | Median item age |
+|---|---|---|
+| grist.org | **0.4h** | 111h |
+| commondreams.org | **1.5h** | 41h |
+| theconversation.com/au | 5.2h | 61h |
+| nasa.gov | 5.8h | 44h |
+| theconversation.com/africa | 7.3h | 96h |
+| globalvoices.org | 13.4h | 105h |
+| kffhealthnews.org | 28.4h | 76h |
+| theconversation.com/us | 43.4h | 69h |
+| spectrum.ieee.org | 43.4h | **285h** |
+| news.mit.edu | 45.4h | 111h |
+| propublica.org | 51.4h | **220h** |
+| 19thnews.org | 51.4h | 142h |
+
+⚠ **The lesson: full text and fast are in tension.** Publishers who hand you the whole
+article are long-form outlets that publish a few times a day; the ones that publish hourly
+give you three lines. Only two sources on this roster are both.
+
+Two fixes, both applied:
+1. **The per-desk top-up had no time window at all.** The flat read was bounded to 96 hours,
+   but the section top-up took the newest N in a desk however old they were — which is how a
+   58-day-old story reached the front page. Bounded to 14 days (`HOME_TOPUP_WINDOW_HOURS`).
+2. **Added the fast full-text sources** above, and put them on tier 1 so they refresh every
+   ten minutes.
+
+Result: the lead went from **43 hours old to 0.5 hours**, and the oldest item able to reach
+the front page from 1,393 hours to 313.
+
+⚠ Blocked from this box, do not keep retrying: every States Newsroom site
+(`stateline.org`, `michiganadvance.com`, `floridaphoenix.com`, `ohiocapitaljournal.com`,
+`virginiamercury.com`, `missouriindependent.com`) returns **403** to both our UA and a
+browser UA — Cloudflare refusing the datacenter IP. They would otherwise be ideal: daily,
+full text, CC-licensed.
+Also measured and rejected: `democracynow.org` (1,048 chars), `truthout.org` (405),
+`justice.gov` press releases (248), `insideclimatenews.org` (371), `eff.org` (full text but
+newest 45h, median 377h).
