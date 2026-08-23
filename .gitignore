@@ -1,0 +1,10 @@
+data/*.sqlite
+data/*.sqlite-wal
+data/*.sqlite-shm
+data/*.json
+data/*.lock
+data/cache/
+dist/
+.gstack/
+*.log
+_dev.php
