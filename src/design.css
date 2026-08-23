@@ -57,6 +57,7 @@
   --pad:clamp(16px,2.2vw,48px);          /* page gutter; no max-width anywhere */
   --colpad:20px;                         /* text inset from its plumb rule */
   --colgap:36px;                         /* gap between hung columns */
+  --measure:660px;                       /* the reading measure: 19px serif = ~67 characters */
 
   /* geometry — an instrument is square. No radius anywhere by decision. */
   --radius:0;
@@ -280,8 +281,8 @@ ul,ol{list-style:none}
 
 /* ============ article page — a reading measure, not a card ============ */
 .article-byline{font:500 var(--fs-meta)/1.6 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin:0 0 var(--s4)}
-.article-body{max-width:70ch;margin:var(--s5) 0 0;font:400 19px/1.75 var(--serif);color:var(--ink);border-left:1px solid var(--rule);padding-left:clamp(16px,2vw,32px)}
-.article-body p{margin:0 0 1.05em}
+.article-body{max-width:var(--measure);margin:var(--s5) 0 0;font:400 19px/1.75 var(--serif);color:var(--ink)}
+.article-body p{margin:0 0 1.25em}
 .article-continue{margin-top:var(--s5);padding-top:var(--s4);border-top:1px solid var(--rule)}
 .article-continue .card-out{font-family:var(--sans);font-size:var(--fs-ui);font-weight:600}
 
@@ -351,7 +352,6 @@ ul,ol{list-style:none}
   .card--lead .card-hed{font-size:clamp(27px,7.6vw,36px)}
   .wx-temp{font-size:32px}
   .searchbar{max-width:none}
-  .article-body{border-left:0;padding-left:0}
 }
 
 /* ============ reduced motion ============ */
@@ -422,16 +422,16 @@ ul,ol{list-style:none}
 
 .page{max-width:none}
 .page-head{padding-bottom:var(--s5);margin-bottom:var(--s6);border-bottom:1px solid var(--rule)}
-.page-kicker{margin:0 0 var(--s4);border-left:3px solid var(--accent);padding-left:12px}
+.page-kicker{margin:0 0 var(--s4) -15px;border-left:3px solid var(--accent);padding-left:12px}
 .page-title{font:700 clamp(30px,2.3vw,46px)/1.1 var(--serif);letter-spacing:.005em;color:var(--ink);margin:0}
 .page-standfirst{max-width:56ch;margin:var(--s4) 0 0;font:400 clamp(18px,1.2vw,22px)/1.5 var(--serif);color:var(--ink-2)}
 .page-meta{margin:var(--s4) 0 0;font:400 var(--fs-meta)/1.4 var(--mono);letter-spacing:.06em;color:var(--ink-2)}
 
 /* the prose hangs from a plumb line, exactly as the article body does */
-.page-prose{max-width:70ch;font:400 19px/1.75 var(--serif);color:var(--ink);border-left:1px solid var(--rule);padding-left:clamp(16px,2vw,32px)}
-.page-prose h2{margin:var(--s7) 0 var(--s4);border-left:3px solid var(--accent);padding-left:12px;margin-left:calc(-1 * clamp(16px,2vw,32px));font:700 14px/1.35 var(--sans);letter-spacing:.15em;text-transform:uppercase;color:var(--accent)}
+.page-prose{max-width:var(--measure);font:400 19px/1.75 var(--serif);color:var(--ink)}
+.page-prose h2{margin:var(--s7) 0 var(--s4);border-left:3px solid var(--accent);padding-left:12px;margin-left:-15px;font:700 14px/1.35 var(--sans);letter-spacing:.15em;text-transform:uppercase;color:var(--accent)}
 .page-prose h3{margin:var(--s6) 0 var(--s3);font:600 21px/1.3 var(--serif);color:var(--ink)}
-.page-prose p{margin:0 0 1.05em}
+.page-prose p{margin:0 0 1.25em}
 .page-prose ul,.page-prose ol{margin:0 0 1.15em;padding-left:1.3em}
 .page-prose li{margin:0 0 .55em}
 .page-prose li::marker{color:var(--accent)}
@@ -473,14 +473,14 @@ ul,ol{list-style:none}
 .cform-send:hover{background:var(--accent);border-color:var(--accent)}
 
 @media (max-width:640px){
-  .page-prose{font-size:18px;border-left:0;padding-left:0}
-  .page-prose h2{margin-left:0}
+  .page-prose{font-size:18px}
+  .page-kicker,.page-prose h2{margin-left:0;border-left:0;padding-left:0}
   .lic{padding-left:16px}
 }
 
 /* two-column standing page: the contents rail hangs from its own plumb line on
    the right; the prose keeps its measure. Width buys a column, not margin. */
-.page-body{display:grid;grid-template-columns:minmax(0,72ch) clamp(230px,20vw,320px);justify-content:start;gap:clamp(24px,3.6vw,72px);align-items:start}
+.page-body{display:grid;grid-template-columns:minmax(0,var(--measure)) clamp(230px,20vw,320px);justify-content:start;gap:clamp(24px,3.6vw,72px);align-items:start}
 .page-body>.page-prose{grid-column:1;grid-row:1}
 .page-toc{grid-column:2;grid-row:1;position:sticky;top:var(--s5);border-left:1px solid var(--rule);padding-left:20px}
 .page-toc-h{font:700 11px/1.6 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 var(--s2)}
@@ -490,8 +490,7 @@ ul,ol{list-style:none}
 .page-prose h2{scroll-margin-top:96px}
 .page-prose h3{scroll-margin-top:96px}
 @media (min-width:1900px){
-  .page-prose{max-width:82ch}
-  .page-body{grid-template-columns:minmax(0,84ch) 340px}
+  .page-body{grid-template-columns:minmax(0,var(--measure)) 340px}
 }
 @media (max-width:1100px){
   .page-body{grid-template-columns:minmax(0,1fr)}
