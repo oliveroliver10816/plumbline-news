@@ -708,3 +708,18 @@ ul,ol{list-style:none}
   .nav a{min-height:36px}
   .nav{font-size:12.5px}
 }
+
+/* ============ ticker: seamless, slower ================================
+   The TODAY bug used to sit inside the strip behind a vertical rule, so the
+   crawl began 120px in and the bar read as two pieces. The word now lives in
+   the masthead dateline beside the date it describes, and the strip runs the
+   full width. Speed 80s -> 150s: at 80 the headlines were moving faster than
+   they could be read. */
+.ticker-bug{display:none}
+.ticker{border-top:1px solid var(--rule)}
+.ticker-vp{flex:1;min-width:0}
+.ticker-track{animation-duration:150s}
+.today-bug{display:inline-flex;align-items:center;gap:7px;margin-right:10px;
+  font:700 10px var(--sans);letter-spacing:.16em;color:var(--accent);vertical-align:1px}
+.today-bug .dot{width:6px;height:6px;background:var(--accent);transform:rotate(45deg)}
+@media (max-width:640px){.today-bug{display:none}}

@@ -45,6 +45,8 @@ final class Placeholder
         'technology' => '#2E2A3A',   // ink violet
         'science'    => '#24382F',   // deep moss
         'culture'    => '#5A3A1E',   // tan-ink
+        'us-news'    => '#1F3348',   // navy-ink — the national desk
+        'financial'  => '#1E4636',   // ledger green
     ];
 
     /** The ladder an unregistered desk is drawn from, so none collide by accident. */

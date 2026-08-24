@@ -639,8 +639,11 @@ final class Render
             $copy .= self::tickerItem($item, true);
         }
 
+        // The TODAY bug used to sit inside the strip with a rule beside it, which
+        // cut the headline crawl short of the left edge and broke the seam. The
+        // word moves into the masthead dateline below, where the date already
+        // lives; the strip now runs the full width of the window.
         return '<div class="ticker" aria-label="Latest headlines">'
-            . '<div class="ticker-bug"><span class="dot" aria-hidden="true"></span>TODAY</div>'
             . '<div class="ticker-vp"><div class="ticker-track">'
             . '<ul>' . $live . '</ul>'
             . '<ul aria-hidden="true">' . $copy . '</ul>'
@@ -1179,7 +1182,11 @@ final class Render
         // weather desk and prints no conditions it did not report.
         $place = self::defaultPlace($cfg);
 
-        $sideLines = '<strong>' . self::esc($now->format('l, F j, Y')) . '</strong>';
+        // TODAY moved here from the ticker, so the headline strip above can run
+        // edge to edge. It sits with the date it describes, which reads better
+        // than a boxed badge cutting into the crawl.
+        $sideLines = '<span class="today-bug"><span class="dot" aria-hidden="true"></span>TODAY</span>'
+            . '<strong>' . self::esc($now->format('l, F j, Y')) . '</strong>';
         if ($place !== '') {
             $sideLines .= '<br>' . self::esc($place);
         }

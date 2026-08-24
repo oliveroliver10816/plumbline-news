@@ -193,3 +193,30 @@ full text, CC-licensed.
 Also measured and rejected: `democracynow.org` (1,048 chars), `truthout.org` (405),
 `justice.gov` press releases (248), `insideclimatenews.org` (371), `eff.org` (full text but
 newest 45h, median 377h).
+
+## Two verticals added 2026-08-24 — U.S. News and Financial
+
+Measured the same day, same method. Client asked for both on Plumbline only.
+
+| Feed | Median body | Newest item | Licence | Desk |
+|---|---|---|---|---|
+| `https://theconversation.com/us/articles.atom` | 7,279 | 63.5h | CC BY-ND 4.0 | U.S. News |
+| `https://www.commondreams.org/feeds/opinion.rss` | 7,076 | **20.9h** | CC BY-SA 4.0 | U.S. News |
+| `https://www.motherjones.com/feed/` | 3,908 | **15.0h** | none published — **extract only** | U.S. News |
+| `https://libertystreeteconomics.newyorkfed.org/feed/` | **10,517** | 118.5h | NY Fed, reproduction with attribution | Financial |
+| `https://econofact.org/feed` | 3,635 | 784h | Republication with credit | Financial |
+
+⚠ **Free full-text financial journalism barely exists.** Everything else measured for that desk
+was a stub or dead: `nakedcapitalism` 0 chars · `wolfstreet` 0 · `federalreserve.gov` 0 ·
+`taxfoundation.org` 0 · `bls.gov` 403 · `imf.org` 403 · `stlouisfed.org` timeout ·
+`chicagofed.org` 404 · `finance.yahoo.com` fast but 0 chars of body ·
+`calculatedriskblog.com` newest item 5,377h old · `cepr.net` 18,379h ·
+`marketplace.org` 308 redirect loop · `promarket.org` 326 chars.
+So Financial launches with two sources, one of them slow. It will look thinner than the other
+desks until a better source appears — that is a sourcing limit, not a bug.
+
+⚠ Also rejected for U.S. News: `thenation.com` 212 chars · `truthout.org` 405 ·
+`rawstory.com` 404 · `theintercept.com` full text but newest 23h / median 177h and no reuse
+grant · every States Newsroom site still Cloudflare-403 from this box.
+⚠ The Conversation's **topic** feeds are abandoned — `us-economy` newest item 54,578h old
+(six years), `inflation` 5,486h, `us-politics` 859h. Only the section feeds are maintained.

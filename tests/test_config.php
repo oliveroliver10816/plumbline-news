@@ -928,7 +928,7 @@ return [
         // newsroom publishes its whole article in a public feed under a licence
         // that permits republication. Padding it back out to thirty is exactly
         // the mistake that produced a page of three-line stubs.
-        assertSame(20, count($feeds), 'the roster is the measured twenty, no more and no fewer');
+        assertSame(25, count($feeds), 'the roster is the measured twenty-five, no more and no fewer');
 
         $slugs    = [];
         $urls     = [];
@@ -982,7 +982,7 @@ return [
         // 18 feeds, and nothing else — the JSON services went with the weather
         // page. Stated as an exact number so deleting a row from RECON.md
         // cannot quietly shrink what this test checks.
-        assertSame(20, count($wanted), 'RECON.md must document every feed on the roster');
+        assertSame(25, count($wanted), 'RECON.md must document every feed on the roster');
 
         $have = array_column(Feeds::all(), 'feed');
 
@@ -1053,7 +1053,7 @@ return [
 
     'the front page section order is the one the spec fixes' => function (): void {
         assertSame(
-            ['politics', 'environment', 'education', 'health', 'world', 'business', 'technology', 'science', 'culture'],
+            ['us-news', 'politics', 'environment', 'education', 'health', 'financial', 'world', 'business', 'technology', 'science', 'culture'],
             array_column(Feeds::homeSections(), 'slug')
         );
         assertContains('business', Feeds::financeSections());

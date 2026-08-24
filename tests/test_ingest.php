@@ -438,12 +438,12 @@ return [
     },
 
     'a feed list supplied in config is never overridden by the built-in registry' => function (): void {
-        // Feeds::due() answers about the twenty-feed production roster. If it were
+        // Feeds::due() answers about the twenty-five-feed production roster. If it were
         // consulted for a config that carries its own list, a test — or a caller with a
         // custom registry — would silently fetch the wrong sites.
         teb_require_app('Feeds');
         assertTrue(class_exists('TEB\\Feeds'), 'the registry is loaded for this test');
-        assertSame(20, count(TEB\Feeds::all()), 'and it really does hold the full roster');
+        assertSame(25, count(TEB\Feeds::all()), 'and it really does hold the full roster');
 
         $cfg = ti_cfg();
         $pdo = ti_db($cfg);
