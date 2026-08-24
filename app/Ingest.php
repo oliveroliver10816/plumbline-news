@@ -408,6 +408,105 @@ final class Ingest
     }
 
     /**
+     * Ask the article page for a picture, for stored rows that have none.
+     *
+     * Runs when the measuring queue is empty, so it never competes with it, and
+     * marks each attempt through image_tries so a page that will never yield one
+     * is not re-fetched for ever.
+     */
+    public static function backfillMissingImages(PDO $p, array $cfg, int $limit = 60, float $budget = 20.0): int
+    {
+        try {
+            $st = $p->prepare(
+                "SELECT id, url, source_slug FROM articles WHERE image_url = '' "
+                . 'AND COALESCE(image_tries, 0) < ' . self::MAX_IMAGE_TRIES . ' '
+                . 'ORDER BY published_at DESC LIMIT ?'
+            );
+            $st->bindValue(1, max(1, $limit), PDO::PARAM_INT);
+            $st->execute();
+            $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\Throwable $e) {
+            return 0;
+        }
+        if ($rows === []) {
+            return 0;
+        }
+
+        $byUrl = [];
+        foreach ($rows as $r) {
+            $slug = (string) ($r['source_slug'] ?? '');
+            if ((string) $r['url'] === '' || ($slug !== '' && !Feeds::imagesAllowed($slug))) {
+                continue;
+            }
+            $byUrl[(string) $r['url']][] = (int) $r['id'];
+        }
+        if ($byUrl === []) {
+            return 0;
+        }
+
+        $found = Images::discoverFromPages(array_keys($byUrl), $cfg, $budget);
+
+        $set  = $p->prepare('UPDATE articles SET image_url = ? WHERE id = ?');
+        $miss = $p->prepare('UPDATE articles SET image_tries = COALESCE(image_tries, 0) + 1 WHERE id = ?');
+        $n    = 0;
+        foreach ($byUrl as $url => $ids) {
+            foreach ($ids as $id) {
+                if (isset($found[$url])) {
+                    $set->execute([Images::upgradeUrl($found[$url]), $id]);
+                    $n++;
+                } else {
+                    $miss->execute([$id]);
+                }
+            }
+        }
+
+        return $n;
+    }
+
+    /**
+     * Fill in images for rows whose feed carried none, from the article page.
+     *
+     * @param  array<int,array<string,mixed>> $rows
+     * @return array<int,array<string,mixed>>
+     */
+    private static function discoverMissingImages(array $rows, array $cfg, float $budget): array
+    {
+        $want = [];
+        foreach ($rows as $k => $r) {
+            if ((string) ($r['image_url'] ?? '') !== '') {
+                continue;
+            }
+            $url = (string) ($r['url'] ?? '');
+            // A source that publishes no reuse grant for its pictures is not
+            // scraped for one either.
+            $slug = (string) ($r['source_slug'] ?? '');
+            if ($url === '' || ($slug !== '' && !Feeds::imagesAllowed($slug))) {
+                continue;
+            }
+            $want[$url][] = $k;
+        }
+        if ($want === []) {
+            return $rows;
+        }
+
+        try {
+            $found = Images::discoverFromPages(array_keys($want), $cfg, $budget);
+        } catch (\Throwable $e) {
+            error_log('[teb] image discovery failed: ' . $e->getMessage());
+
+            return $rows;
+        }
+
+        foreach ($found as $articleUrl => $imageUrl) {
+            foreach ($want[$articleUrl] ?? [] as $k) {
+                $rows[$k]['image_url'] = Images::upgradeUrl($imageUrl);
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
      * Measure images already in the database that have never been measured.
      *
      * Rows written before measuring existed, or skipped when a run ran out of
@@ -444,6 +543,10 @@ final class Ingest
         }
 
         if ($rows === []) {
+            // Nothing left to measure — spend the pass finding pictures for rows
+            // whose feed never carried one.
+            $out['discovered'] = self::backfillMissingImages($p, $cfg, $limit, $budget);
+
             return $out;
         }
         $out['checked'] = count($rows);
@@ -519,6 +622,13 @@ final class Ingest
         if ($budget <= 0) {
             return $rows;                     // measuring switched off in config
         }
+
+        // Some newsrooms publish a picture with the story but not in the feed.
+        // The article page always declares one in og:image — the tag that exists
+        // so other sites can show it — so ask the page before falling back to
+        // the house placeholder. Only the publisher's own image for that exact
+        // article; never a stock photo matched to the headline.
+        $rows = self::discoverMissingImages($rows, $cfg, min(20.0, $budget));
 
         try {
             $sizes = Images::measure($urls, $cfg, $budget);

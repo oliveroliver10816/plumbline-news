@@ -126,6 +126,164 @@ final class Images
     }
 
     /**
+     * Find the picture a publisher chose for an article, from the article page.
+     *
+     * Some feeds carry no image even though the story has one — The 19th, Grist
+     * and Mother Jones all do this. The page itself always declares one, in the
+     * `og:image` tag that exists precisely so other sites can show it when
+     * linking: it is the same tag Facebook, Slack and iMessage read to build a
+     * link preview, and it is the publisher's own choice of picture for that
+     * exact story.
+     *
+     * ⚠ This is deliberately NOT a stock-photo search. Matching a headline to
+     * some unrelated library photograph would put a picture of the wrong person,
+     * place or event beside a news story — which is misleading whatever the
+     * licence says, and on a story about real people it is worse than a
+     * placeholder. Only the publisher's own image for that article is used.
+     *
+     * @param  array<int,string> $urls  article page URLs
+     * @return array<string,string>     article url => image url
+     */
+    public static function discoverFromPages(array $urls, array $cfg, float $budgetSeconds = 25.0, int $concurrency = 6): array
+    {
+        $urls = array_values(array_unique(array_filter($urls, static fn($u): bool => is_string($u) && $u !== '')));
+        if ($urls === [] || !function_exists('curl_multi_init')) {
+            return [];
+        }
+
+        $ua       = self::userAgent($cfg);
+        $deadline = microtime(true) + max(3.0, $budgetSeconds);
+        $out      = [];
+        $queue    = $urls;
+        $mh       = curl_multi_init();
+        $active   = [];
+
+        $start = function () use (&$queue, &$active, $mh, $ua): bool {
+            if ($queue === []) {
+                return false;
+            }
+            $url = array_shift($queue);
+            $ch  = curl_init($url);
+            $buf = '';
+            curl_setopt_array($ch, [
+                CURLOPT_TIMEOUT        => 15,
+                CURLOPT_CONNECTTIMEOUT => 6,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 4,
+                CURLOPT_USERAGENT      => $ua,
+                CURLOPT_ENCODING       => '',
+                // The tags we want live in <head>, so a byte cap is enough — and
+                // aborting the moment </head> appears made curl_multi drop the
+                // handle before the buffer was readable. Cap only.
+                CURLOPT_RANGE          => '0-262143',
+                CURLOPT_WRITEFUNCTION  => function ($c, string $chunk) use (&$buf): int {
+                    $buf .= $chunk;
+                    if (strlen($buf) >= 262144) {
+                        return -1;
+                    }
+                    return strlen($chunk);
+                },
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $active[(int) $ch] = ['url' => $url, 'ch' => $ch, 'buf' => &$buf];
+            return true;
+        };
+
+        for ($i = 0; $i < $concurrency; $i++) {
+            if (!$start()) {
+                break;
+            }
+        }
+
+        do {
+            curl_multi_exec($mh, $running);
+            curl_multi_select($mh, 0.2);
+
+            while (($info = curl_multi_info_read($mh)) !== false) {
+                $ch  = $info['handle'];
+                $key = (int) $ch;
+                $rec = $active[$key] ?? null;
+                if ($rec !== null) {
+                    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $eff  = (string) curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+                    if (($code === 200 || $code === 206 || $code === 0) && $rec['buf'] !== '') {
+                        $img = self::metaImage($rec['buf'], $eff !== '' ? $eff : $rec['url']);
+                        if ($img !== '') {
+                            $out[$rec['url']] = $img;
+                        }
+                    }
+                    unset($active[$key]);
+                }
+                curl_multi_remove_handle($mh, $ch);
+                curl_close($ch);
+
+                if (microtime(true) < $deadline) {
+                    $start();
+                }
+            }
+            if (microtime(true) >= $deadline) {
+                break;
+            }
+        } while ($running > 0 || $active !== []);
+
+        foreach ($active as $rec) {
+            curl_multi_remove_handle($mh, $rec['ch']);
+            curl_close($rec['ch']);
+        }
+        curl_multi_close($mh);
+
+        return $out;
+    }
+
+    /** Pull og:image / twitter:image out of a page head, resolved to absolute. */
+    public static function metaImage(string $html, string $pageUrl = ''): string
+    {
+        $head = stripos($html, '</head>') !== false ? substr($html, 0, stripos($html, '</head>')) : $html;
+
+        foreach (['og:image:secure_url', 'og:image', 'twitter:image', 'twitter:image:src'] as $prop) {
+            $q = preg_quote($prop, '#');
+            foreach ([
+                '#<meta[^>]+(?:property|name)\s*=\s*["\']' . $q . '["\'][^>]*content\s*=\s*["\']([^"\']+)#i',
+                '#<meta[^>]+content\s*=\s*["\']([^"\']+)["\'][^>]*(?:property|name)\s*=\s*["\']' . $q . '["\']#i',
+            ] as $re) {
+                if (preg_match($re, $head, $m) === 1) {
+                    $u = html_entity_decode(trim($m[1]), ENT_QUOTES, 'UTF-8');
+                    $u = self::absolutise($u, $pageUrl);
+                    if ($u !== '') {
+                        return $u;
+                    }
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /** A meta tag may hold a protocol-relative or root-relative URL. */
+    private static function absolutise(string $u, string $base): string
+    {
+        $u = trim($u);
+        if ($u === '') {
+            return '';
+        }
+        if (strpos($u, '//') === 0) {
+            return 'https:' . $u;
+        }
+        if (preg_match('#^https?://#i', $u) === 1) {
+            return $u;
+        }
+        $b = parse_url($base);
+        if (!isset($b['scheme'], $b['host'])) {
+            return '';
+        }
+        if (strpos($u, '/') === 0) {
+            return $b['scheme'] . '://' . $b['host'] . $u;
+        }
+
+        return '';
+    }
+
+    /**
      * Measure a batch of image URLs concurrently.
      *
      * Returns [url => ['w'=>int,'h'=>int]] for those that could be read. A URL
