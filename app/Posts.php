@@ -31,6 +31,14 @@ final class Posts
     /** How many pinned slots the front page offers. */
     public const SLOTS = 6;
 
+    /** Headline of the post the last save() pushed out of its slot, if any. */
+    private static ?string $lastDisplaced = null;
+
+    public static function lastDisplaced(): ?string
+    {
+        return self::$lastDisplaced;
+    }
+
     public static function migrate(PDO $p): void
     {
         $driver = Db::driver($p);
@@ -148,7 +156,20 @@ final class Posts
             $st->bindValue(2, $limit, PDO::PARAM_INT);
             $st->execute();
 
-            return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+            // Belt and braces: if older data ever put two posts in one slot,
+            // the NEWEST wins rather than whichever the sort happened to reach
+            // last. Ordering above is slot ASC, published_at DESC.
+            $bySlot = [];
+            foreach ($rows as $r) {
+                $slot = (int) ($r['slot'] ?? 0);
+                if (!isset($bySlot[$slot])) {
+                    $bySlot[$slot] = $r;
+                }
+            }
+
+            return array_values($bySlot);
         } catch (Throwable $e) {
             return [];
         }
@@ -169,6 +190,30 @@ final class Posts
             return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
         } catch (Throwable $e) {
             return [];
+        }
+    }
+
+    /**
+     * Who currently holds a front-page slot, if anyone else does.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function slotHolder(PDO $p, int $slot, ?int $exceptId = null): ?array
+    {
+        if ($slot < 1) {
+            return null;
+        }
+        try {
+            $st = $p->prepare(
+                "SELECT * FROM desk_posts WHERE pinned = 1 AND slot = ? AND status = 'published' "
+                . 'AND id <> ? ORDER BY published_at DESC LIMIT 1'
+            );
+            $st->execute([$slot, (int) $exceptId]);
+            $r = $st->fetch(PDO::FETCH_ASSOC);
+
+            return $r === false ? null : $r;
+        } catch (Throwable $e) {
+            return null;
         }
     }
 
@@ -197,6 +242,28 @@ final class Posts
             'published_at' => (int) ($in['published_at'] ?? 0) ?: $now,
             'updated_at'   => $now,
         ];
+
+        // A slot holds ONE post. Without this two posts could both claim slot 1
+        // and the front page picked between them by publication date — the OLDER
+        // one won the lead, which is the opposite of what anyone would expect.
+        // The post already there is unpinned, not deleted or unpublished: it
+        // keeps its URL and stays on the site, it just stops being pinned.
+        if ($cols['pinned'] === 1 && $cols['slot'] > 0 && $cols['status'] === self::STATUS_PUBLISHED) {
+            $held = self::slotHolder($p, $cols['slot'], $id);
+            if ($held !== null) {
+                try {
+                    $p->prepare('UPDATE desk_posts SET pinned = 0, slot = 0 WHERE id = ?')
+                      ->execute([(int) $held['id']]);
+                    self::$lastDisplaced = (string) $held['headline'];
+                } catch (Throwable $e) {
+                    self::$lastDisplaced = null;
+                }
+            } else {
+                self::$lastDisplaced = null;
+            }
+        } else {
+            self::$lastDisplaced = null;
+        }
 
         if ($id === null) {
             $cols['created_at'] = $now;

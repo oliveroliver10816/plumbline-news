@@ -177,6 +177,15 @@ final class Studio
                 . self::editView($p, $cfg, $user, $row, $_POST), $cfg, 'New post', 500);
         }
 
+        // A slot holds one post, so pinning this one may have pushed another out.
+        // Say which, by name — an unexplained disappearance from the front page
+        // is exactly the kind of thing that reads as a bug.
+        $displaced = Posts::lastDisplaced();
+        if ($displaced !== null && $displaced !== '') {
+            $notice = trim($notice . ' Unpinned "' . $displaced . '" — a slot holds one post. '
+                . 'It is still published, just no longer on the front page.');
+        }
+
         self::mirror($p, $cfg);
 
         return self::redirect(Paths::url(self::prefix($cfg) . '/edit/' . $newId) . '?saved=1'
@@ -322,7 +331,10 @@ final class Studio
         }
         $slots = '';
         for ($i = 1; $i <= Posts::SLOTS; $i++) {
-            $slots .= '<option value="' . $i . '"' . ((int) $v('slot') === $i ? ' selected' : '') . '>Slot ' . $i . '</option>';
+            $holder = Posts::slotHolder($p, $i, $id ?: null);
+            $who    = $holder !== null ? ' — taken by "' . mb_substr((string) $holder['headline'], 0, 34) . '"' : ' — free';
+            $slots .= '<option value="' . $i . '"' . ((int) $v('slot') === $i ? ' selected' : '') . '>'
+                . self::esc('Slot ' . $i . $who) . '</option>';
         }
 
         $pubMs    = (int) $v('published_at');
@@ -379,7 +391,8 @@ final class Studio
             . '<option value="published"' . ($v('status') === Posts::STATUS_PUBLISHED ? ' selected' : '') . '>Published — live on the site</option>'
             . '</select></label>'
             . '<label class="check"><input type="checkbox" name="pinned" value="1"' . ($v('pinned') ? ' checked' : '') . '> Pin to the front page</label>'
-            . '<label>Front-page position<select name="slot"><option value="0">Not pinned</option>' . $slots . '</select></label>'
+            . '<label>Front-page position<select name="slot"><option value="0">Not pinned</option>' . $slots . '</select>'
+            . '<span class="hint">Slot 1 is the lead. A slot holds one post — taking an occupied slot unpins the post already there, which stays published.</span></label>'
             . '<label>Section<select name="section">' . $opts . '</select></label>'
             . '<label>Byline<input name="author" value="' . self::esc($v('author', (string) $user['username'])) . '" maxlength="120"></label>'
             . '<label>Publish date <span class="hint">blank = publish now · times are ' . self::esc($tz) . '</span>'

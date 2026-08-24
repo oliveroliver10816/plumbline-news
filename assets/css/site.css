@@ -676,3 +676,35 @@ ul,ol{list-style:none}
   .hero{padding-top:10px}
   .hero-lead .card-media{margin-top:8px}
 }
+
+/* ============ desktop masthead, halved =================================
+   Measured at 1440x900 before this block: ticker 49 + masthead 155 + nav 50
+   = 254px, which pushed the lead photograph's bottom edge to y=796. That
+   fits a 900px window and CUTS on the two commonest laptops — 1366x768 and
+   1440x789 — where the picture clipped and the story's summary never
+   appeared at all. The brand is not removed, only tightened: a smaller
+   wordmark, less padding around it, a shorter ticker and nav. */
+@media (min-width:641px){
+  .masthead{padding-block:10px 8px}
+  .masthead-brand .wordmark{font-size:clamp(26px,2.1vw,38px)}
+  .masthead-brand .wordmark::after{height:12px;margin-top:6px}
+  .masthead-brand .tag{font-size:10px;letter-spacing:.22em}
+  .masthead-brand .tag::before{width:5px;height:5px;margin-bottom:7px}
+  .masthead-grid{gap:16px;align-items:center}
+  .masthead-side{font-size:10.5px;line-height:1.6}
+  /* The edition plate was 95px — the tallest thing in the masthead, and taller
+     than the wordmark it sits beside. Laid out on one line it is a dateline,
+     not a monument. */
+  .masthead-plate{padding:4px 10px;display:flex;align-items:baseline;gap:10px;white-space:nowrap}
+  .masthead-plate .clock{font-size:16px;line-height:1.2}
+  .masthead-plate>*{margin:0}
+  .masthead-plate .rule,.masthead-plate .diamonds{display:none}
+
+  /* The ticker had grown to 63px on its own line-height. */
+  .ticker-track{padding-block:5px}
+  .ticker{font-size:12px;line-height:1.35}
+  .ticker-bug{padding-block:4px}
+
+  .nav a{min-height:36px}
+  .nav{font-size:12.5px}
+}
